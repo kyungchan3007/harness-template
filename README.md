@@ -19,10 +19,12 @@
 | --- | --- | --- |
 | 🚦 완료 게이트 | 검사가 실패하면 에이전트가 작업을 끝내지 못함 | Stop 훅 |
 | 🔒 보호 파일 | 하네스 · 의존성 · 계약 파일 변경을 차단 | `protected.txt` |
-| 🗺️ 작업 범위 | 계획에 없던 파일 변경을 경고 | `plan.md` ↔ `git diff` |
+| 🔁 Quick · Full Loop | 작업 크기에 맞게 문서와 검사 범위를 자동으로 나눔 | `loop-mode` |
+| 🗺️ 작업 범위 | 계획에 없던 파일 변경을 경고 | 파일 계획 ↔ `git diff` |
 | 🧪 테스트 약화 감지 | 기존 테스트의 단언 삭제·변경을 경고 | `git diff` |
 | 📁 작업 폴더 밖 쓰기 차단 | `$HOME` · `/tmp` 쓰기를 실행 전에 막음 | PreToolUse 훅 |
-| 📝 요청 원문 고정 | 작업마다 요청 원문과 계획을 남김 | `.agents/specs/` |
+| 📝 작업 의도 (Intent) | 요청 원문 · prd · sdd · trace 템플릿 | `.agents/specs/` |
+| 🎼 오케스트레이션 뼈대 | 여러 에이전트용 역할 · 패턴 지침서 (선택) | `.agents/orchestration/` |
 
 > 외부 의존성 0개 · Node 22만 있으면 동작 · 어떤 언어 프로젝트에도 얹을 수 있음
 
@@ -51,24 +53,53 @@ bash .agents/checks.sh
 
 ---
 
-## 🔁 작업 흐름
+## 🔁 Quick Loop · Full Loop
+
+작업 크기에 맞게 남길 문서와 돌릴 검사를 나눕니다. 루프는 작업 폴더를 보고 자동으로 정해집니다.
+
+| 루프 | 언제 | 남길 문서 | 게이트 | 만들기 |
+| --- | --- | --- | --- | --- |
+| ⚡ **Quick** | 작은 변경 · 설계 고민 적음 | request · plan | typecheck · lint · test | `npm run spec:new -- 이름` |
+| 🧭 **Full** | 경계·계약 변경 · 여러 세션 · 여러 에이전트 | request · prd · sdd · trace | Quick + build · e2e | `npm run spec:new -- 이름 --full` |
 
 ```mermaid
 flowchart LR
     A[요청] --> B[spec:new<br/>request.md 원문]
-    B --> C[plan.md<br/>파일 계획]
-    C --> D[구현]
-    D --> E{checks.sh}
-    E -- FAIL --> D
-    E -- PASS --> F[완료]
-    F --> G[plan.md 허점 기록]
+    B --> Q{크기}
+    Q -- 작다 --> C[plan.md]
+    Q -- 크다 --> D[prd · sdd · trace]
+    C --> E[구현]
+    D --> E
+    E --> F{checks.sh}
+    F -- FAIL --> E
+    F -- PASS --> G[완료 · 허점 기록]
 ```
 
+- 판정: 작업 폴더에 prd·sdd가 있으면 Full, 없으면 Quick (`LOOP=full`로 강제)
+- Quick인데 바뀐 파일이 10개를 넘으면 게이트가 Full로 올리라고 경고
+- Quick으로 시작해 커지면 plan.md를 prd · sdd · trace로 나누면 됨
+
 ```bash
-npm run spec:new -- cart-qty        # .agents/specs/0001-cart-qty/ 생성
-git switch -c task/0001-cart-qty    # 브랜치 번호로 게이트가 계획을 찾음
+npm run spec:new -- cart-qty        # .agents/specs/0001-cart-qty/ (Quick)
+git switch -c task/0001-cart-qty    # 브랜치 번호로 게이트가 작업 폴더를 찾음
 bash .agents/checks.sh              # 에이전트는 Stop 훅이 자동 실행
 ```
+
+---
+
+## 📝 작업 의도 (Intent)
+
+작업마다 "무엇을 · 왜 · 어떻게"를 남깁니다. **원본은 request.md 원문** 하나이고 나머지는 거기서 나온 문서입니다.
+
+| 파일 | 답하는 질문 | 핵심 칸 | 루프 |
+| --- | --- | --- | --- |
+| `request.md` | 무엇을 요청받았나 | 원문 그대로 (요약 금지 · 고정) | 둘 다 |
+| `plan.md` | 작은 작업의 전부 | 무엇을 · 애매한 곳 · 파일 계획 · 완료 기준 · 허점 | Quick |
+| `prd.md` | 무엇을 · 왜 | 문제 · 목표 · 비목표 · 애매한 곳 · 완료 기준 | Full |
+| `sdd.md` | 어떻게 | 접근 · 대안 · 파일 계획 · 위험 · 검증 계획 · 달라진 점 | Full |
+| `trace.md` | 어떻게 판단했나 | 단계별 판단 · 이유 · 허점 | Full |
+
+> 애매한 값은 지어내지 않고 묻습니다. 답을 받으면 `(확인됨: 답)`, 스스로 정했으면 `(가정)`으로 표시합니다.
 
 ---
 
@@ -84,7 +115,9 @@ bash .agents/checks.sh              # 에이전트는 Stop 훅이 자동 실행
 ├── .agents/
 │   ├── checks.sh              # 게이트
 │   ├── protected.txt          # 항상 보호 목록
-│   ├── specs/                 # 작업별 request.md · plan.md
+│   ├── specs/                 # 작업별 의도 문서
+│   │   ├── _template/         #   Quick: request · plan
+│   │   └── _template-full/    #   Full: request · prd · sdd · trace
 │   ├── orchestration/         # (선택) 여러 에이전트를 엮는 뼈대
 │   └── scripts/               # 검사 · 훅 스크립트 + 테스트
 ├── .claude/settings.json      # Stop · PreToolUse 훅
@@ -98,10 +131,11 @@ bash .agents/checks.sh              # 에이전트는 Stop 훅이 자동 실행
 | 상황 | 결과 | 푸는 방법 |
 | --- | --- | --- |
 | 보호 파일 변경 | ❌ 차단 | 사람이 `ALLOW_PROTECTED=1` 또는 PR에 `harness-approved` 라벨 |
-| 작업 기록 없음 | ❌ 차단 | `request.md` · `plan.md` 채우기 |
+| 작업 기록 없음 | ❌ 차단 | Quick: request · plan / Full: request · prd · sdd · trace 채우기 |
 | 프로젝트 검사 실패 | ❌ 차단 | 고치기 |
-| 계획 밖 파일 변경 | ⚠️ 경고 | `plan.md` "계획 밖 변경 이유"에 한 줄 |
+| 계획 밖 파일 변경 | ⚠️ 경고 | plan.md 또는 sdd.md "계획 밖 변경 이유"에 한 줄 |
 | 기존 테스트 단언 삭제 | ⚠️ 경고 | 의도한 변경인지 리뷰 |
+| Quick인데 10개 넘게 변경 | ⚠️ 경고 | `--full` 로 문서 나누기 |
 | 작업 폴더 밖 쓰기 | ⛔ 실행 전 차단 | 저장소 안 `.tmp/` 사용 |
 
 > 경고를 실패로 바꾸려면 `SCOPE_STRICT=1 bash .agents/checks.sh`
@@ -154,7 +188,7 @@ bash .agents/checks.sh              # 에이전트는 Stop 훅이 자동 실행
 | 첫날 | 이 템플릿 그대로 |
 | 같은 실수가 **2번** 나오면 | 그 실수만 막는 검사 · 훅 · 린트 한 줄 |
 | 코드로 확인할 수 있는 규칙이 생기면 | 문서 대신 린트 · 테스트로 |
-| 작업이 커지면 | `plan.md`를 prd · sdd · trace로 나누기 |
+| 작업이 커지면 | Full Loop로 (`--full`) |
 | 에이전트가 여럿이면 | `.agents/orchestration/` 켜기 (패턴 하나부터) |
 
 **하지 않는 것**

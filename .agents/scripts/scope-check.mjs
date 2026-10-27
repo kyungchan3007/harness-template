@@ -1,7 +1,11 @@
-// 범위 검사 — plan.md "파일 계획" 밖 변경과 기존 테스트 약화를 경고(차단 아님, SCOPE_STRICT=1 이면 실패)
+// 범위 검사 — plan.md 또는 sdd.md "파일 계획" 밖 변경과 기존 테스트 약화를 경고(차단 아님, SCOPE_STRICT=1 이면 실패)
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { QUICK_MAX_FILES, loopMode } from "./loop-mode.mjs";
 import { ROOT, baseRef, changedFiles, currentSpec, git, isTestFile, matchesAny, planSection } from "./lib.mjs";
+
+/** 파일 계획이 있는 문서: 큰 작업은 sdd.md, 작은 작업은 plan.md */
+const planFile = (dir) => ["sdd.md", "plan.md"].map((f) => join(dir, f)).find((f) => existsSync(join(ROOT, f)));
 
 const ALWAYS_OK = [".agents/specs/**"];
 
@@ -20,16 +24,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const warns = [];
   if (!spec.id) {
     console.log(`브랜치 "${spec.branch}"에 작업 번호(NNNN)가 없어 범위 검사를 건너뜁니다`);
-  } else if (!spec.dir || !existsSync(join(ROOT, spec.dir, "plan.md"))) {
-    warns.push(`작업 ${spec.id}의 .agents/specs/${spec.id}-*/plan.md 가 없습니다`);
+  } else if (!spec.dir || !planFile(spec.dir)) {
+    warns.push(`작업 ${spec.id}의 파일 계획(plan.md 또는 sdd.md)이 없습니다`);
   } else {
-    const plan = readFileSync(join(ROOT, spec.dir, "plan.md"), "utf8");
+    const planPath = planFile(spec.dir);
+    const plan = readFileSync(join(ROOT, planPath), "utf8");
     const globs = planSection(plan, "파일 계획");
     const explained = planSection(plan, "계획 밖 변경 이유");
-    if (globs.length === 0) warns.push(`${spec.dir}/plan.md "파일 계획"이 비어 있습니다`);
+    if (globs.length === 0) warns.push(`${planPath} "파일 계획"이 비어 있습니다`);
     const out = outOfPlan(files, globs, explained);
-    if (out.length) warns.push(`계획 밖 변경 ${out.length}개 — plan.md "계획 밖 변경 이유"에 적거나 되돌리세요:\n${out.map((f) => `    - ${f}`).join("\n")}`);
+    if (out.length) warns.push(`계획 밖 변경 ${out.length}개 — ${planPath} "계획 밖 변경 이유"에 적거나 되돌리세요:\n${out.map((f) => `    - ${f}`).join("\n")}`);
   }
+  if (spec.dir && loopMode({ has: (f) => existsSync(join(ROOT, spec.dir, f)) }) === "quick" && files.length > QUICK_MAX_FILES)
+    warns.push(`Quick Loop 인데 바뀐 파일이 ${files.length}개입니다 (기준 ${QUICK_MAX_FILES}) — Full Loop(prd · sdd · trace)로 올리는 걸 검토하세요`);
   const base = baseRef();
   for (const f of files.filter(isTestFile)) {
     if (!base || !git(["cat-file", "-e", `${base}:${f}`])) continue; // 새 테스트는 자유

@@ -90,3 +90,21 @@ test("오케스트레이션: 6요소 · 4패턴이 README에 연결됨", () => {
   const readme = read(new URL("README.md", ORCH), "utf8");
   for (const s of ["분해·배정", "흐름", "전달물", "상태 공유", "합류·판정", "충돌 방지", "역할 분리", "병렬 분산", "감독자-작업자", "토론"]) assert.ok(readme.includes(s), s);
 });
+
+import { requiredDocs } from "./spec-check.mjs";
+test("작업 기록: 작은 작업은 plan, 큰 작업은 prd + sdd", () => {
+  assert.deepEqual(requiredDocs((f) => f === "plan.md"), ["plan.md"]);
+  assert.deepEqual(requiredDocs((f) => f === "prd.md"), ["prd.md", "sdd.md", "trace.md"]);
+  assert.deepEqual(requiredDocs(() => false, "full"), ["prd.md", "sdd.md", "trace.md"]);
+  for (const f of ["request.md", "prd.md", "sdd.md", "trace.md"]) assert.ok(emptyTemplate(read(new URL(`../specs/_template-full/${f}`, import.meta.url), "utf8")), `${f} 템플릿은 빈 것으로 판정`);
+  const sdd = read(new URL("../specs/_template-full/sdd.md", import.meta.url), "utf8");
+  for (const s of ["접근", "대안 · 트레이드오프", "파일 계획", "계획 밖 변경 이유", "위험", "검증 계획", "계획과 달라진 점"]) assert.ok(sdd.includes(`## ${s}`), s);
+});
+
+import { loopMode } from "./loop-mode.mjs";
+test("루프: LOOP 우선, 없으면 prd·sdd 있으면 full", () => {
+  assert.equal(loopMode({ env: "", has: () => false }), "quick");
+  assert.equal(loopMode({ env: "", has: (f) => f === "sdd.md" }), "full");
+  assert.equal(loopMode({ env: "full", has: () => false }), "full");
+  assert.equal(loopMode({ env: "quick", has: (f) => f === "sdd.md" }), "quick");
+});
