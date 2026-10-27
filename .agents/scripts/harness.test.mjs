@@ -64,3 +64,29 @@ test("밖 쓰기: 프로젝트 안 · /dev 는 허용, 밖은 차단", () => {
   assert.equal(decide({ tool_name: "Write", tool_input: { file_path: "/work/app/src/a.ts" } }, root), null);
   assert.equal(decide({ tool_name: "Read", tool_input: { file_path: "/etc/hosts" } }, root), null);
 });
+
+// 오케스트레이션 뼈대 — 지침서마다 필수 칸이 있는지 (내용은 비어도 됨)
+import { readFileSync as read, readdirSync as list } from "node:fs";
+const ORCH = new URL("../orchestration/", import.meta.url);
+const headings = (file) => read(new URL(file, ORCH), "utf8").split("\n").filter((l) => l.startsWith("## ")).map((l) => l.slice(3).trim());
+const ROLE_SECTIONS = ["목적", "먼저 읽을 것", "할 일", "하지 않을 것", "받는 것", "넘기는 것", "완료 기준"];
+const PATTERN_SECTIONS = ["언제 쓰나", "참여 역할", "흐름", "단계", "전달물", "합류 · 판정", "충돌 방지", "주의"];
+
+test("오케스트레이션: 역할 지침서 필수 칸", () => {
+  for (const f of list(new URL("roles/", ORCH)).filter((f) => f.endsWith(".md"))) {
+    const missing = ROLE_SECTIONS.filter((s) => !headings(`roles/${f}`).includes(s));
+    assert.deepEqual(missing, [], `roles/${f} 에 빠진 칸`);
+  }
+});
+
+test("오케스트레이션: 패턴 지침서 필수 칸", () => {
+  for (const f of list(new URL("patterns/", ORCH)).filter((f) => f.endsWith(".md"))) {
+    const missing = PATTERN_SECTIONS.filter((s) => !headings(`patterns/${f}`).includes(s));
+    assert.deepEqual(missing, [], `patterns/${f} 에 빠진 칸`);
+  }
+});
+
+test("오케스트레이션: 6요소 · 4패턴이 README에 연결됨", () => {
+  const readme = read(new URL("README.md", ORCH), "utf8");
+  for (const s of ["분해·배정", "흐름", "전달물", "상태 공유", "합류·판정", "충돌 방지", "역할 분리", "병렬 분산", "감독자-작업자", "토론"]) assert.ok(readme.includes(s), s);
+});
