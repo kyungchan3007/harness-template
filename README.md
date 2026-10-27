@@ -289,8 +289,9 @@ ALLOW_PROTECTED=1 bash .agents/checks.sh   # 하네스 파일은 보호 목록�
 | 🐞 에이전트가 한 실수 알리기 | [실수 보고 이슈](../../issues/new?template=agent-mistake.yml) |
 | 💡 새 검사 · 훅 제안 | [개선 제안 이슈](../../issues/new?template=improvement.yml) |
 | 💬 써 본 후기 · 적용 사례 | [Discussions · Show and tell](../../discussions/categories/show-and-tell) |
-| 🍴 내 방식대로 바꿔 쓰기 | Fork · Use this template |
+| 🍴 내 방식대로 바꿔 쓰기 | Fork · Use this template (원본과 무관하게 자유롭게) |
 
+- **원본에는 이슈로만 기여합니다.** 외부 PR은 받지 않고, 좋은 제안은 메인테이너가 직접 반영합니다 (원본이 섞이지 않게)
 - 같은 실수 보고가 **2건 이상** 모이면 규칙 후보가 되고, 채택되면 위 실험 표에 기여자와 함께 올라갑니다
 - 자세한 흐름은 [CONTRIBUTING](CONTRIBUTING.md)
 
@@ -308,7 +309,7 @@ ALLOW_PROTECTED=1 bash .agents/checks.sh   # 하네스 파일은 보호 목록�
 <details>
 <summary><b>에이전트가 보호 파일을 스스로 승인하면요?</b></summary>
 
-CI는 PR 라벨로 승인하므로 로컬에서 우회해도 PR에서 다시 걸립니다. 라벨은 에이전트도 `gh`로 붙일 수 있으니, 저장소 설정에서 라벨·머지 권한을 사람에게만 두세요.
+내 저장소에서 PR로 작업한다면 CI가 PR 라벨로 승인하므로 로컬에서 우회해도 PR에서 다시 걸립니다. 라벨은 에이전트도 `gh`로 붙일 수 있으니, 저장소 설정에서 라벨·머지 권한을 사람에게만 두세요.
 
 </details>
 

@@ -28,3 +28,9 @@ body:
       options:
         - 차단 (확실한 실수)
         - 경고 (정당한 경우도 있음)
+  - type: textarea
+    id: code
+    attributes:
+      label: 코드 예시 (선택)
+      description: 원본에는 PR 대신 이슈로 받습니다. Fork 에서 만든 코드나 링크를 붙여 주세요.
+      render: javascript
